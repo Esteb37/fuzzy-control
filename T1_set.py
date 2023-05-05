@@ -73,9 +73,8 @@ class T1_Gaussian(T1_sets):
 
 class T1_RightShoulder(T1_sets):
 
-    def get_degree(self, x, maxDegree=1.0):
+    def get_degree(self, x):
         left = self._interval[0]
-        right = self._interval[1]
 
         if (x < left):
             return (0.0)
@@ -100,7 +99,6 @@ class T1_RightShoulder(T1_sets):
 class T1_LeftShoulder(T1_sets):
 
     def get_degree(self, x):
-        left = self._interval[0]
         right = self._interval[1]
 
         if (x > right):

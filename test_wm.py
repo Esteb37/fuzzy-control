@@ -2,7 +2,7 @@ from train_wm import wang_mendel
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from T1_set import *
+from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
 
 
@@ -61,20 +61,8 @@ def get_MSE(real_values_list, predicted_value_list):
     return (np.square(np.subtract(real_values_list, predicted_value_list)).mean())
 
 
-def individual_rule_output(inputs, rule):
-    firing_level_of_pairs = 1
-    for i in range(0, len(inputs)):
-        temp_firing = inputs[i][int(rule[i]) - 1]
-
-        if (temp_firing == 0):
-            firing_level_of_pairs = "nan"
-            break
-
-        # minimum is implemented
-        if (temp_firing < firing_level_of_pairs):
-            firing_level_of_pairs = temp_firing
-
-    return firing_level_of_pairs
+def individual_rule_output(firing_strengths, rule):
+    return []
 
 
 def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antecedent_list):
@@ -91,16 +79,17 @@ def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antec
     return (zip(l1.index, l1[1]))
 
 
-def apply_rules_to_inputs(all_firing_strengths, train_obj, inputs):
+def apply_rules_to_inputs(all_firing_strengths, train_obj, inputs, outputs):
     output_results = []
-    for input_index, i in enumerate(all_firing_strengths):
-        rule_output_strength = np.empty(
-            [len(train_obj.reduced_rules), 1])
+
+    for firing_strengths in all_firing_strengths:
+
+        rule_output_strength = np.empty([len(train_obj.reduced_rules), 1])
         rule_output_strength.fill(np.NaN)
 
         for rule_index, rule in enumerate(train_obj.reduced_rules):
             rule_output_strength[rule_index] = individual_rule_output(
-                all_firing_strengths[])
+                firing_strengths, rule)
 
         firing_level_for_each_output = union_strength_of_same_antecedents(
             rule_output_strength, train_obj.reduced_rules[:, train_obj.p])
@@ -117,24 +106,25 @@ def apply_rules_to_inputs(all_firing_strengths, train_obj, inputs):
 def generate_test(train_obj, inputs, outputs):
 
     # Generate_firing_strengths
-    all_firing_strengths = np.empty(
-        [len(inputs), train_obj.antecedent_number])
+    firing_strengths = np.empty([len(inputs), train_obj.antecedent_number, 2])
+    firing_strengths.fill(np.NaN)
 
-    all_firing_strengths.fill(np.NaN)
+    for index, (distance_input, angle_input) in enumerate(inputs):
+        antecedent_firings = []
 
-    for index, (distance, angle) in enumerate(inputs):
+        for i in range(1, train_obj.antecedent_number+1):
+            distance_fs = train_obj.distance_antecedents[i].get_degree(
+                distance_input)
 
-        temp_firings = []
-        for i in range(train_obj.antecedent_number):
-            fs_distance = train_obj.distance_antecedents[i].get_degree(
-                distance)
-            fs_angle = train_obj.angle_antecedents[i].get_degree(angle)
-            temp_firings.append((fs_distance, fs_angle))
+            angle_fs = train_obj.angle_antecedents[i].get_degree(angle_input)
 
-        all_firing_strengths[index] = temp_firings
+            antecedent_firings.append((distance_fs, angle_fs))
 
+        firing_strengths[index] = antecedent_firings
+
+    # Apply_rules_to_inputs
     mse, output_results = apply_rules_to_inputs(
-        all_firing_strengths, train_obj, inputs)
+        firing_strengths, train_obj, inputs, outputs)
 
     print("MSE: ", mse)
 
@@ -163,6 +153,9 @@ def main():
     # 7 antecedents, 9 past points
     linear_train_obj = wang_mendel("linear", train_matrix, 7)
     angular_train_obj = wang_mendel("angular", train_matrix, 7)
+
+    generate_test(linear_train_obj, test_matrix[:, 0:2], test_matrix[:, 2])
+    generate_test(angular_train_obj, test_matrix[:, 0:2], test_matrix[:, 3])
 
 
 if __name__ == "__main__":

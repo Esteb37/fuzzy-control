@@ -1,7 +1,3 @@
-
-import numpy as np
-
-
 class output(object):
 
     def __init__(self, max_fs, interval):
