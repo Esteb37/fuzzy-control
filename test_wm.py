@@ -148,28 +148,28 @@ def main():
 
     fig = plt.figure()
 
-    ax1 = fig.add_subplot(411)
+    ax1 = fig.add_subplot(411, label="subplot1")
     ax1.plot(data_matrix[:, 0])
     ax1.set_title('Distance error')
     ax1.set_ylabel('m')
     ax1.set_xlabel('time')
     ax1.grid(True)
 
-    ax2 = fig.add_subplot(412)
+    ax2 = fig.add_subplot(412, label="subplot2")
     ax2.plot(data_matrix[:, 1])
     ax2.set_title('Angle error')
     ax2.set_ylabel('rad')
     ax2.set_xlabel('time')
     ax2.grid(True)
 
-    ax3 = fig.add_subplot(413)
+    ax3 = fig.add_subplot(413, label="subplot3")
     ax3.plot(data_matrix[:, 2])
     ax3.set_title('Linear velocity')
     ax3.set_ylabel('m/s')
     ax3.set_xlabel('time')
     ax3.grid(True)
 
-    ax4 = fig.add_subplot(414)
+    ax4 = fig.add_subplot(414, label="subplot4")
     ax4.plot(data_matrix[:, 3])
     ax4.set_title('Angular velocity')
     ax4.set_ylabel('rad/s')

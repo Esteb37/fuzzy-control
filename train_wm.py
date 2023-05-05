@@ -41,7 +41,7 @@ class wang_mendel(object):
     def plot_antecedents(self):
 
         fig = plt.figure()
-
+        ax1 = fig.add_subplot(211, label="subplot1")
         for i in range(1, self.antecedent_number + 1):
             interval = self.distance_antecedents[i].interval
 
@@ -49,11 +49,12 @@ class wang_mendel(object):
 
             x = np.linspace(interval[0], interval[1], len(mf_degrees))
 
-            ax1 = fig.add_subplot(211)
             ax1.plot(x, mf_degrees)
             ax1.set_ylabel("Membership")
             ax1.set_xlabel("Distance (m)")
             ax1.grid(True)
+
+        ax2 = fig.add_subplot(212, label="subplot2")
 
         for i in range(1, self.antecedent_number + 1):
             interval = self.angle_antecedents[i].interval
@@ -62,7 +63,6 @@ class wang_mendel(object):
 
             x = np.linspace(interval[0], interval[1], len(mf_degrees))
 
-            ax2 = fig.add_subplot(212)
             ax2.plot(x, mf_degrees)
             ax2.set_ylabel("Membership")
             ax2.set_xlabel("Angle (rad)")
@@ -143,7 +143,11 @@ class wang_mendel(object):
             all_rule_matrix[i] = np.array(
                 [distance_membership, angle_membership, output_membership, rule_degree])
 
-        return self.rule_reduction(all_rule_matrix)
+        print("Unreduced rules:", len(all_rule_matrix))
+        reduced = self.rule_reduction(all_rule_matrix)
+        print("Reduced rules:", len(reduced))
+        print("Rule example: ", reduced[0])
+        return reduced
 
     def assign_points(self, antecedents, training_data):
         """
