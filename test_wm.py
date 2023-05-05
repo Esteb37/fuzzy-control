@@ -144,10 +144,44 @@ def generate_test(train_obj, inputs, outputs, title):
 
 def main():
 
-    data_matrix = np.load("datos.npy")[100:1000]
+    data_matrix = np.load("datos.npy")[10:5000]
+
+    fig = plt.figure()
+
+    ax1 = fig.add_subplot(411)
+    ax1.plot(data_matrix[:, 0])
+    ax1.set_title('Distance error')
+    ax1.set_ylabel('m')
+    ax1.set_xlabel('time')
+    ax1.grid(True)
+
+    ax2 = fig.add_subplot(412)
+    ax2.plot(data_matrix[:, 1])
+    ax2.set_title('Angle error')
+    ax2.set_ylabel('rad')
+    ax2.set_xlabel('time')
+    ax2.grid(True)
+
+    ax3 = fig.add_subplot(413)
+    ax3.plot(data_matrix[:, 2])
+    ax3.set_title('Linear velocity')
+    ax3.set_ylabel('m/s')
+    ax3.set_xlabel('time')
+    ax3.grid(True)
+
+    ax4 = fig.add_subplot(414)
+    ax4.plot(data_matrix[:, 3])
+    ax4.set_title('Angular velocity')
+    ax4.set_ylabel('rad/s')
+    ax4.set_xlabel('time')
+    ax4.grid(True)
+
+    plt.tight_layout()
+    plt.show()
+
     # First 300 records used for learning rules
-    train_matrix = data_matrix[:300]
-    test_matrix = data_matrix[-700:]  # Remaining 700 records used for testing
+    train_matrix = data_matrix[:1990]
+    test_matrix = data_matrix[-3000:]  # Remaining 700 records used for testing
 
     # Generating rules from noise free set
     # 7 antecedents, 9 past points
@@ -155,7 +189,9 @@ def main():
     angular_train_obj = wang_mendel("angular", train_matrix, 7)
 
     linear_train_obj.plot_antecedents()
-    angular_train_obj.plot_antecedents()
+
+    linear_train_obj.plot_output_antecedents()
+    angular_train_obj.plot_output_antecedents()
 
     generate_test(linear_train_obj,
                   test_matrix[:, 0:2], test_matrix[:, 2], "Linear Model")

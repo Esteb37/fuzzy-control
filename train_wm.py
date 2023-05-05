@@ -40,6 +40,8 @@ class wang_mendel(object):
 
     def plot_antecedents(self):
 
+        fig = plt.figure()
+
         for i in range(1, self.antecedent_number + 1):
             interval = self.distance_antecedents[i].interval
 
@@ -47,9 +49,11 @@ class wang_mendel(object):
 
             x = np.linspace(interval[0], interval[1], len(mf_degrees))
 
-            plt.subplot(311).plot(x, mf_degrees)
-            plt.title("Membership Functions")
-            plt.ylabel("Distance")
+            ax1 = fig.add_subplot(211)
+            ax1.plot(x, mf_degrees)
+            ax1.set_ylabel("Membership")
+            ax1.set_xlabel("Distance (m)")
+            ax1.grid(True)
 
         for i in range(1, self.antecedent_number + 1):
             interval = self.angle_antecedents[i].interval
@@ -58,9 +62,16 @@ class wang_mendel(object):
 
             x = np.linspace(interval[0], interval[1], len(mf_degrees))
 
-            plt.subplot(312).plot(x, mf_degrees)
-            plt.ylabel("Angle")
+            ax2 = fig.add_subplot(212)
+            ax2.plot(x, mf_degrees)
+            ax2.set_ylabel("Membership")
+            ax2.set_xlabel("Angle (rad)")
+            ax2.grid(True)
 
+        fig.subplots_adjust(hspace=0.5)
+        plt.show()
+
+    def plot_output_antecedents(self):
         for i in range(1, self.antecedent_number + 1):
             interval = self.output_antecedents[i].interval
 
@@ -68,9 +79,11 @@ class wang_mendel(object):
 
             x = np.linspace(interval[0], interval[1], len(mf_degrees))
 
-            plt.subplot(313).plot(x, mf_degrees)
-            plt.ylabel("Output (" + self.output_type + ")")
-
+            plt.plot(x, mf_degrees)
+            plt.ylabel("Membership")
+            plt.xlabel(self.output_type + " velocity (m/s)" if self.output_type ==
+                       'linear' else self.output_type + " velocity (rad/s)")
+            plt.grid(True)
         plt.show()
 
     def generate_antecedents(self, training_data, antecedent_number):
