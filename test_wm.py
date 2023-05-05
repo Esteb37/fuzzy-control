@@ -62,7 +62,19 @@ def get_MSE(real_values_list, predicted_value_list):
 
 
 def individual_rule_output(firing_strengths, rule):
-    return []
+    firing_level_of_pairs = 1
+    for i in range(0, len(inputs)):
+        temp_firing = inputs[i][int(rule[i]) - 1]
+
+        if (temp_firing == 0):
+            firing_level_of_pairs = "nan"
+            break
+
+        # minimum is implemented
+        if (temp_firing < firing_level_of_pairs):
+            firing_level_of_pairs = temp_firing
+
+    return firing_level_of_pairs
 
 
 def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antecedent_list):
