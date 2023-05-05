@@ -1,10 +1,13 @@
 import numpy as np
 from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
+from matplotlib import pyplot as plt
 
 
 class wang_mendel(object):
 
     def __init__(self, output_type, train_data_matrix, antecedent_number):
+
+        self.output_type = output_type
 
         if (output_type not in ['linear', 'angular']):
             raise ValueError(
@@ -34,6 +37,41 @@ class wang_mendel(object):
         self.antecedent_number = antecedent_number
 
         self.__reduced_rules = self.rule_matrix_generating()
+
+    def plot_antecedents(self):
+
+        for i in range(1, self.antecedent_number + 1):
+            interval = self.distance_antecedents[i].interval
+
+            mf_degrees = self.distance_antecedents[i].get_mf_degrees()
+
+            x = np.linspace(interval[0], interval[1], len(mf_degrees))
+
+            plt.subplot(311).plot(x, mf_degrees)
+            plt.title("Membership Functions")
+            plt.ylabel("Distance")
+
+        for i in range(1, self.antecedent_number + 1):
+            interval = self.angle_antecedents[i].interval
+
+            mf_degrees = self.angle_antecedents[i].get_mf_degrees()
+
+            x = np.linspace(interval[0], interval[1], len(mf_degrees))
+
+            plt.subplot(312).plot(x, mf_degrees)
+            plt.ylabel("Angle")
+
+        for i in range(1, self.antecedent_number + 1):
+            interval = self.output_antecedents[i].interval
+
+            mf_degrees = self.output_antecedents[i].get_mf_degrees()
+
+            x = np.linspace(interval[0], interval[1], len(mf_degrees))
+
+            plt.subplot(313).plot(x, mf_degrees)
+            plt.ylabel("Output (" + self.output_type + ")")
+
+        plt.show()
 
     def generate_antecedents(self, training_data, antecedent_number):
 
