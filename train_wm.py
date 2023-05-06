@@ -41,7 +41,7 @@ class wang_mendel(object):
     def plot_antecedents(self):
 
         fig = plt.figure()
-        ax1 = fig.add_subplot(211, label="subplot1")
+        ax1 = fig.add_subplot(211)
         for i in range(1, self.antecedent_number + 1):
             interval = self.distance_antecedents[i].interval
 
@@ -54,7 +54,7 @@ class wang_mendel(object):
             ax1.set_xlabel("Distance (m)")
             ax1.grid(True)
 
-        ax2 = fig.add_subplot(212, label="subplot2")
+        ax2 = fig.add_subplot(212)
 
         for i in range(1, self.antecedent_number + 1):
             interval = self.angle_antecedents[i].interval
@@ -143,6 +143,7 @@ class wang_mendel(object):
             all_rule_matrix[i] = np.array(
                 [distance_membership, angle_membership, output_membership, rule_degree])
 
+        print("\n------ "+self.output_type+" velocity rules ------")
         print("Unreduced rules:", len(all_rule_matrix))
         reduced = self.rule_reduction(all_rule_matrix)
         print("Reduced rules:", len(reduced))
