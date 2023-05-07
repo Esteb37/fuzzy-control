@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
+from time import time
+import multiprocessing as mp
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
@@ -62,7 +64,6 @@ def individual_rule_output(inputs, rule):
         # minimum is implemented
         if (temp_firing < firing_level_of_pairs):
             firing_level_of_pairs = temp_firing
-
     return firing_level_of_pairs
 
 
@@ -76,11 +77,11 @@ def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antec
     l1 = grouped_output_antecedent_strength.groupby([2]).max()
 
     l1 = pd.DataFrame.dropna(l1)
-
     return (zip(l1.index, l1[1]))
 
 
-def apply_rules_to_inputs(all_firing_strengths, train_obj,  outputs):
+def apply_rules_to_inputs(params):
+    all_firing_strengths, train_obj,  outputs = params
     output_results = []
 
     for firing_strengths in all_firing_strengths:
@@ -99,15 +100,47 @@ def apply_rules_to_inputs(all_firing_strengths, train_obj,  outputs):
             firing_level_for_each_output, train_obj.output_antecedents)
         output_results.append(centroid)
 
+    return output_results
+
+
+def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
+    num_processes = mp.cpu_count()  # get number of available CPU cores
+    # create a pool of worker processes
+    pool = mp.Pool(num_processes)
+    # calculate chunk size for each process
+    chunksize = int(len(all_firing_strengths) / num_processes)
+
+    # apply the function to each chunk of input firing strengths in parallel
+    firing_chunks = chunks(all_firing_strengths, chunksize)
+    output_chunks = chunks(outputs, chunksize)
+    results = pool.map_async(apply_rules_to_inputs, [(firing_chunk, train_obj, output_chunks[i])
+                                                     for i, firing_chunk in enumerate(firing_chunks)])
+
+    # combine the results from each worker process
+    output_results = []
+    for r in results.get():
+        output_results.extend(r)
+
+    # calculate the average MSE across all input firing strengths
     MSE = get_MSE(outputs, output_results)
+
+    # close the pool of worker processes
+    pool.close()
+    pool.join()
+
     return (MSE, output_results)
 
 
-def generate_test(train_obj, inputs, outputs):
+def chunks(lst, chunk_size):
+    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
+
+def generate_test(train_obj, inputs, outputs):
     # Generate_firing_strengths
     firing_strengths = np.empty([len(inputs), 2, train_obj.antecedent_number])
     firing_strengths.fill(np.NaN)
+
+    start = time()
 
     for index, (distance_input, angle_input) in enumerate(inputs):
         distance_antecedent_firings = []
@@ -125,10 +158,14 @@ def generate_test(train_obj, inputs, outputs):
         firing_strengths[index] = [distance_antecedent_firings,
                                    angle_antecedent_firings]
 
-    # Apply_rules_to_inputs
-    mse, output_results = apply_rules_to_inputs(
+    print("Time to generate firing strengths: ", time() - start)
+
+    start = time()
+
+    mse, output_results = apply_rules_to_inputs_parallel(
         firing_strengths, train_obj, outputs)
 
+    print("Time to apply rules: ", time() - start)
     return (mse, output_results)
 
 
@@ -246,6 +283,7 @@ def main():
     plt.plot(linear_pred_outputs, 'r-.', label='Pred')
     plt.title("Linear model\nMSE:"+str(round(linear_mse, 4)))
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.tight_layout()
     plt.show()
 
     plt.figure(figsize=(10, 5))
@@ -256,6 +294,7 @@ def main():
     plt.plot(angular_pred_outputs, 'r-.', label='Pred')
     plt.title("Angular model\nMSE:"+str(round(angular_mse, 4)))
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.tight_layout()
     plt.show()
 
 
