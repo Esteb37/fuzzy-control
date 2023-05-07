@@ -6,6 +6,7 @@ from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
 from time import time
 import multiprocessing as mp
+import pickle
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
@@ -80,8 +81,7 @@ def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antec
     return (zip(l1.index, l1[1]))
 
 
-def apply_rules_to_inputs(params):
-    all_firing_strengths, train_obj,  outputs = params
+def apply_rules_to_inputs(all_firing_strengths, train_obj, outputs):
     output_results = []
 
     for firing_strengths in all_firing_strengths:
@@ -100,81 +100,58 @@ def apply_rules_to_inputs(params):
             firing_level_for_each_output, train_obj.output_antecedents)
         output_results.append(centroid)
 
-    return output_results
-
-
-def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
-    num_processes = mp.cpu_count()  # get number of available CPU cores
-    # create a pool of worker processes
-    pool = mp.Pool(num_processes)
-    # calculate chunk size for each process
-    chunksize = int(len(all_firing_strengths) / num_processes)
-
-    # apply the function to each chunk of input firing strengths in parallel
-    firing_chunks = chunks(all_firing_strengths, chunksize)
-    output_chunks = chunks(outputs, chunksize)
-    results = pool.map_async(apply_rules_to_inputs, [(firing_chunk, train_obj, output_chunks[i])
-                                                     for i, firing_chunk in enumerate(firing_chunks)])
-
-    # combine the results from each worker process
-    output_results = []
-    for r in results.get():
-        output_results.extend(r)
-
-    # calculate the average MSE across all input firing strengths
     MSE = get_MSE(outputs, output_results)
-
-    # close the pool of worker processes
-    pool.close()
-    pool.join()
-
     return (MSE, output_results)
-
-
-def chunks(lst, chunk_size):
-    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
 def generate_test(train_obj, inputs, outputs):
     # Generate_firing_strengths
-    firing_strengths = np.empty([len(inputs), 2, train_obj.antecedent_number])
+    matrix_width = max(train_obj.antecedent_numbers)
+    firing_strengths = np.empty(
+        [len(inputs), 2, matrix_width])
     firing_strengths.fill(np.NaN)
 
-    start = time()
-
     for index, (distance_input, angle_input) in enumerate(inputs):
-        distance_antecedent_firings = []
-        angle_antecedent_firings = []
+        distance_antecedent_firings = np.empty(matrix_width)
+        angle_antecedent_firings = np.empty(matrix_width)
 
-        for i in range(1, train_obj.antecedent_number+1):
+        for i in range(1, train_obj.antecedent_numbers[0]+1):
             distance_fs = train_obj.distance_antecedents[i].get_degree(
                 distance_input)
 
-            angle_fs = train_obj.angle_antecedents[i].get_degree(angle_input)
+            distance_antecedent_firings[i-1] = distance_fs
 
-            distance_antecedent_firings.append(distance_fs)
-            angle_antecedent_firings.append(angle_fs)
+        for i in range(1, train_obj.antecedent_numbers[1]+1):
+            angle_fs = train_obj.angle_antecedents[i].get_degree(angle_input)
+            angle_antecedent_firings[i-1] = angle_fs
 
         firing_strengths[index] = [distance_antecedent_firings,
                                    angle_antecedent_firings]
 
-    print("Time to generate firing strengths: ", time() - start)
-
-    start = time()
-
-    mse, output_results = apply_rules_to_inputs_parallel(
+    mse, output_results = apply_rules_to_inputs(
         firing_strengths, train_obj, outputs)
 
-    print("Time to apply rules: ", time() - start)
     return (mse, output_results)
 
 
-def main():
+def generate_rules(args):
+    distance_ant_number, angle_ant_number, output_ant_number, train_matrix, test_matrix = args
 
-    data_matrix = np.load("datos.npy")[10:5000]
+    print("Running antecedent numbers: ", distance_ant_number,
+          angle_ant_number, output_ant_number)
+    ant_numbers = [distance_ant_number, angle_ant_number, output_ant_number]
+    linear_train_obj = wang_mendel("linear", train_matrix, ant_numbers)
+    angular_train_obj = wang_mendel("angular", train_matrix, ant_numbers)
+    (linear_mse, linear_outputs) = generate_test(linear_train_obj,
+                                                 test_matrix[:, 0:2], test_matrix[:, 2])
+    (angular_mse, angular_outputs) = generate_test(angular_train_obj,
+                                                   test_matrix[:, 0:2], test_matrix[:, 3])
 
+    return (ant_numbers, linear_mse, angular_mse, linear_outputs, angular_outputs)
+
+
+def plot_data(data_matrix):
     fig = plt.figure()
-
     ax1 = fig.add_subplot(411)
     ax1.plot(data_matrix[:, 0])
     ax1.set_title('Distance error')
@@ -206,35 +183,39 @@ def main():
     plt.tight_layout()
     plt.show()
 
+
+def main():
+
+    data_matrix = np.load("datos.npy")
+
+    # plot_data(data_matrix)
+
     # First 300 records used for learning rules
     train_matrix = data_matrix[:2000]
     test_matrix = data_matrix[-3000:]  # Remaining 700 records used for testing
 
     # Generating rules from noise free set
     # 7 antecedents, 9 past points
-
     results = {}
+    try:
+        with open('results.pkl', 'rb') as fp:
+            results = pickle.load(fp)
+    except:
+        results = {}
 
-    for ant_number in [3, 5, 7, 9, 11]:
+    pool = mp.Pool(mp.cpu_count())
+    arg_list = [(distance_ant_number, angle_ant_number, output_ant_number, train_matrix, test_matrix)
+                for distance_ant_number in [3, 5, 7, 9, 11]
+                for angle_ant_number in [3, 5, 7, 9, 11]
+                for output_ant_number in [3, 5, 7, 9, 11]]
 
-        print("\n---------------- Antecedent number: ",
-              ant_number, "----------------")
+    for ant_numbers, linear_mse, angular_mse, linear_outputs, angular_outputs in pool.map(generate_rules, arg_list):
+        results[str(ant_numbers)] = (linear_mse, angular_mse,
+                                     linear_outputs, angular_outputs)
+        print("AVG MSE: ", (linear_mse+angular_mse)/2)
 
-        linear_train_obj = wang_mendel("linear", train_matrix, ant_number)
-        angular_train_obj = wang_mendel("angular", train_matrix, ant_number)
-
-        print("\nTesting linear model...")
-        (linear_mse, linear_outputs) = generate_test(linear_train_obj,
-                                                     test_matrix[:, 0:2], test_matrix[:, 2])
-        print("Linear MSE: ", linear_mse)
-
-        print("\nTesting angular model...")
-        (angular_mse, angular_outputs) = generate_test(angular_train_obj,
-                                                       test_matrix[:, 0:2], test_matrix[:, 3])
-
-        results[ant_number] = (linear_mse, angular_mse,
-                               linear_outputs, angular_outputs)
-        print("Angular MSE: ", angular_mse)
+    with open('results.pkl', 'wb') as fp:
+        pickle.dump(results, fp)
 
     # Plotting the results
     plt.figure(figsize=(10, 5))

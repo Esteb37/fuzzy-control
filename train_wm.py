@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 class wang_mendel(object):
 
-    def __init__(self, output_type, train_data_matrix, antecedent_number):
+    def __init__(self, output_type, train_data_matrix, antecedent_numbers):
 
         self.output_type = output_type
 
@@ -26,15 +26,15 @@ class wang_mendel(object):
         self.training_size = len(train_data_matrix)
 
         self.distance_antecedents = self.generate_antecedents(
-            self.train_distances, antecedent_number)
+            self.train_distances, antecedent_numbers[0])
 
         self.angle_antecedents = self.generate_antecedents(
-            self.train_angles, antecedent_number)
+            self.train_angles, antecedent_numbers[1])
 
         self.output_antecedents = self.generate_antecedents(
-            self.train_outputs, antecedent_number)
+            self.train_outputs, antecedent_numbers[2])
 
-        self.antecedent_number = antecedent_number
+        self.antecedent_numbers = antecedent_numbers
 
         self.__reduced_rules = self.rule_matrix_generating()
 
@@ -42,7 +42,7 @@ class wang_mendel(object):
 
         fig = plt.figure()
         ax1 = fig.add_subplot(211)
-        for i in range(1, self.antecedent_number + 1):
+        for i in range(1, self.antecedent_numbers[0] + 1):
             interval = self.distance_antecedents[i].interval
 
             mf_degrees = self.distance_antecedents[i].get_mf_degrees()
@@ -56,7 +56,7 @@ class wang_mendel(object):
 
         ax2 = fig.add_subplot(212)
 
-        for i in range(1, self.antecedent_number + 1):
+        for i in range(1, self.antecedent_numbers[1] + 1):
             interval = self.angle_antecedents[i].interval
 
             mf_degrees = self.angle_antecedents[i].get_mf_degrees()
@@ -72,7 +72,7 @@ class wang_mendel(object):
         plt.show()
 
     def plot_output_antecedents(self):
-        for i in range(1, self.antecedent_number + 1):
+        for i in range(1, self.antecedent_numbers[2] + 1):
             interval = self.output_antecedents[i].interval
 
             mf_degrees = self.output_antecedents[i].get_mf_degrees()
@@ -142,12 +142,7 @@ class wang_mendel(object):
 
             all_rule_matrix[i] = np.array(
                 [distance_membership, angle_membership, output_membership, rule_degree])
-
-        print("\n------ "+self.output_type+" velocity rules ------")
-        print("Unreduced rules:", len(all_rule_matrix))
         reduced = self.rule_reduction(all_rule_matrix)
-        print("Reduced rules:", len(reduced))
-        print("Rule example: ", reduced[0])
         return reduced
 
     def assign_points(self, antecedents, training_data):
