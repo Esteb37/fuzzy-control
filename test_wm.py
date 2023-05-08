@@ -6,8 +6,7 @@ from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
 from time import time
 import multiprocessing as mp
-import pickle
-import psutil
+import copy as cp
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
@@ -84,39 +83,41 @@ def union_strength_of_same_antecedents(list_of_antecedent_strength, output_antec
 
 def apply_rules_to_inputs(params):
 
-    all_firing_strengths, train_obj, parent_id, process_id = params
+    all_firing_strengths, reduced_rules, output_antecedents = params
 
     output_results = []
-
     for firing_strengths in all_firing_strengths:
 
-        rule_output_strength = np.empty([len(train_obj.reduced_rules), 1])
+        rule_output_strength = np.empty([len(reduced_rules), 1])
         rule_output_strength.fill(np.NaN)
 
-        for rule_index, rule in enumerate(train_obj.reduced_rules):
+        for rule_index, rule in enumerate(reduced_rules):
             rule_output_strength[rule_index] = individual_rule_output(
                 firing_strengths, rule[0:2])
 
         firing_level_for_each_output = union_strength_of_same_antecedents(
-            rule_output_strength, train_obj.reduced_rules[:, 2])
+            rule_output_strength, reduced_rules[:, 2])
 
         centroid = generate_outputs_object(
-            firing_level_for_each_output, train_obj.output_antecedents)
+            firing_level_for_each_output, output_antecedents)
         output_results.append(centroid)
 
     return output_results
 
 
-def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs, parent_id):
-    num_processes = 8  # get number of available CPU cores
+def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
+    num_processes = 3
     # create a pool of worker processes
     pool = mp.Pool(num_processes)
     # calculate chunk size for each process
     chunksize = int(len(all_firing_strengths) / num_processes)
 
     # apply the function to each chunk of input firing strengths in parallel
-    results = pool.map_async(apply_rules_to_inputs, [(chunk, train_obj, parent_id, index)
-                                                     for index, chunk in enumerate(chunks(all_firing_strengths, chunksize))])
+
+    results = pool.map_async(apply_rules_to_inputs,
+                             [(chunk, np.copy(train_obj.reduced_rules), cp.deepcopy(train_obj.output_antecedents))
+                              for chunk in chunks(all_firing_strengths, chunksize)])
+
     # combine the results from each worker process
     output_results = []
     for r in results.get():
@@ -135,7 +136,7 @@ def chunks(lst, chunk_size):
     return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
-def generate_test(train_obj, inputs, outputs, process_id):
+def generate_test(train_obj, inputs, outputs):
     # Generate_firing_strengths
     matrix_width = max(train_obj.antecedent_numbers)
     firing_strengths = np.empty(
@@ -159,25 +160,26 @@ def generate_test(train_obj, inputs, outputs, process_id):
         firing_strengths[index] = [distance_antecedent_firings,
                                    angle_antecedent_firings]
 
-    mse, output_results = apply_rules_to_inputs_parallel(
-        firing_strengths, train_obj, outputs, process_id)
-
-    return (mse, output_results)
+    results = apply_rules_to_inputs_parallel(
+        firing_strengths, train_obj, outputs)
+    return results
 
 
 def generate_rules(ant_numbers):
 
-    process_id = f"{ant_numbers[0]}{ant_numbers[1]}{ant_numbers[2]}"
-    start = time()
-
     data_matrix = np.load("datos.npy")
 
-    linear_train_obj = wang_mendel("linear", data_matrix[:2000], ant_numbers)
-    angular_train_obj = wang_mendel("angular", data_matrix[:2000], ant_numbers)
-    (linear_mse, linear_outputs) = generate_test(linear_train_obj,
-                                                 data_matrix[-3000:][:, 0:2], data_matrix[-3000:][:, 2], process_id)
+    train_matrix = data_matrix[:2000]
+    test_matrix = data_matrix[-3000:]
+
+    linear_train_obj = wang_mendel("linear", train_matrix, ant_numbers)
+    angular_train_obj = wang_mendel("angular", train_matrix, ant_numbers)
+
+    (linear_mse, linear_outputs) = generate_test(
+        linear_train_obj, test_matrix[:, 0:2], test_matrix[:, 2])
+
     (angular_mse, angular_outputs) = generate_test(angular_train_obj,
-                                                   data_matrix[-3000:][:, 0:2], data_matrix[-3000:][:, 3], process_id)
+                                                   test_matrix[:, 0:2], test_matrix[:, 3])
 
     del data_matrix
 
@@ -222,20 +224,20 @@ def main():
 
     antecedents = [3, 5, 7, 9, 11, 13, 15, 17, 19]
 
-    proc_num = 8
+    parents = 3
 
-    start = time()
-    procs = np.empty(proc_num, dtype=object)
+    procs = np.empty(parents, dtype=object)
 
     pos = 0
     start = time()
+
     for i in antecedents:
         for j in antecedents:
             for k in antecedents:
-                if pos < proc_num:
-                    antecedent_numbers = (i, j, k)
+                if pos < parents:
+                    antecedent_numbers = (k, j, i)
                     process = mp.Process(target=generate_rules,
-                                         args=(antecedent_numbers,))
+                                         args=(antecedent_numbers, ))
                     process.daemon = False
                     procs[pos] = process
                     pos += 1
@@ -246,74 +248,7 @@ def main():
     for p in procs:
         p.join()
 
-    print(f"Time taken: {time() - start}")
-
-    """
-    with open('results.pkl', 'wb') as fp:
-        pickle.dump(results, fp)
-
-    # Plotting the results
-    plt.figure(figsize=(10, 5))
-    plt.rcParams.update({'font.size': 15})
-
-    plt.gca().yaxis.grid(True)
-    plt.plot(list(results.keys()), [x[0] for x in results.values()],
-             label='Linear MSE')
-    plt.plot(list(results.keys()), [x[1] for x in results.values()],
-             label='Angular MSE')
-    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-    plt.xlabel("Antecedent number")
-    plt.ylabel("MSE")
-    plt.title("MSE vs Antecedent Number")
-    plt.tight_layout()
-    plt.show()
-
-    best_ant_number = results[results.keys()[0]]
-
-    print("\nBest antecedent number: ", best_ant_number)
-
-    print("\n---------------- Antecedent number: ",
-          best_ant_number, "----------------")
-
-    linear_train_obj = wang_mendel("linear", train_matrix, best_ant_number)
-    angular_train_obj = wang_mendel("angular", train_matrix, best_ant_number)
-
-    linear_train_obj.plot_antecedents()
-
-    linear_train_obj.plot_output_antecedents()
-    angular_train_obj.plot_output_antecedents()
-
-    best_results = results[best_ant_number]
-    linear_test_outputs = test_matrix[:, 2]
-    angular_test_outputs = test_matrix[:, 3]
-
-    linear_mse = best_results[0]
-    angular_mse = best_results[1]
-    linear_pred_outputs = best_results[2]
-    angular_pred_outputs = best_results[3]
-
-    plt.figure(figsize=(10, 5))
-    plt.rcParams.update({'font.size': 15})
-
-    plt.gca().yaxis.grid(True)
-    plt.plot(linear_test_outputs, label='MG')
-    plt.plot(linear_pred_outputs, 'r-.', label='Pred')
-    plt.title("Linear model\nMSE:"+str(round(linear_mse, 4)))
-    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-    plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
-    plt.rcParams.update({'font.size': 15})
-
-    plt.gca().yaxis.grid(True)
-    plt.plot(angular_test_outputs, label='MG')
-    plt.plot(angular_pred_outputs, 'r-.', label='Pred')
-    plt.title("Angular model\nMSE:"+str(round(angular_mse, 4)))
-    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-    plt.tight_layout()
-    plt.show()
-    """
+    print(time()-start)
 
 
 if __name__ == "__main__":
