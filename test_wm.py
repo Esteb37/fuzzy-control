@@ -106,7 +106,7 @@ def apply_rules_to_inputs(params):
 
 
 def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
-    num_processes = 9
+    num_processes = 3
     # create a pool of worker processes
     pool = mp.Pool(num_processes)
     # calculate chunk size for each process
@@ -233,18 +233,49 @@ def plot_data(data_matrix):
 
 def main():
 
+    try:
+        results = np.load("results.npy", allow_pickle=True)
+    except IOError:
+        results = np.empty((0, 3))
+
     antecedents = [3, 5, 7, 9, 11, 13, 15, 17, 19]
+    parents = 3
 
     antecedent_numbers = [
         (k, j, i) for i in antecedents for j in antecedents for k in antecedents]
 
-    start = time()
+    active = np.empty(parents, dtype=object)
 
-    for i, num in enumerate(antecedent_numbers):
-        generate_rules(num)
-        print(f"{float((i+1)/len(antecedent_numbers)*100):.2}% done")
+    for i in range(parents):
+        active[i] = mp.Process(target=generate_rules,
+                               args=(antecedent_numbers[i],))
+        active[i].daemon = False
+        active[i].start()
 
-    print("Time: ", time()-start)
+    pos = parents
+
+    while active.any():
+        for index, process in enumerate(active):
+            if process is None:
+                continue
+
+            if not process.is_alive():
+                if pos < len(antecedent_numbers):
+
+                    num_id = int("".join(map(str, antecedent_numbers[pos])))
+                    if num_id in results[:, 0]:
+                        pos += 1
+                        print("Skipping: ", antecedent_numbers[pos])
+                        continue
+
+                    active[index] = mp.Process(
+                        target=generate_rules, args=(antecedent_numbers[pos],))
+                    active[index].daemon = False
+                    active[index].start()
+                    pos += 1
+                    print(f"{pos/len(antecedent_numbers)*100}% done")
+                else:
+                    active[index] = None
 
 
 if __name__ == "__main__":
