@@ -174,8 +174,16 @@ def generate_rules(ant_numbers):
     train_matrix = data_matrix[:2000]
     test_matrix = data_matrix[-3000:]
 
-    linear_train_obj = wang_mendel("linear", train_matrix, ant_numbers)
-    angular_train_obj = wang_mendel("angular", train_matrix, ant_numbers)
+    distance_range = (0, 4)
+    angle_range = (-np.pi, np.pi)
+
+    max_linear_speed = 0.75
+    max_angular_speed = 0.3
+
+    linear_train_obj = wang_mendel(
+        "linear", train_matrix, ant_numbers, distance_range, angle_range, max_linear_speed)
+    angular_train_obj = wang_mendel(
+        "angular", train_matrix, ant_numbers, distance_range, angle_range, max_angular_speed)
 
     (linear_mse, linear_outputs) = generate_test(
         linear_train_obj, test_matrix[:, 0:2], test_matrix[:, 2])
@@ -287,9 +295,19 @@ def test_model(linear_antecedents, angular_antecedents):
     train_matrix = data_matrix[:2000]
     test_matrix = data_matrix[-3000:]
 
-    linear_train_obj = wang_mendel("linear", train_matrix, linear_antecedents)
+    distance_range = (0, 4)
+    angle_range = (-2.3, 3.7)
+
+    max_linear_speed = 0.75
+    max_angular_speed = 0.3
+
+    linear_train_obj = wang_mendel(
+        "linear", train_matrix, linear_antecedents, distance_range, angle_range, max_linear_speed)
     angular_train_obj = wang_mendel(
-        "angular", train_matrix, angular_antecedents)
+        "angular", train_matrix, angular_antecedents, distance_range, angle_range, max_angular_speed)
+
+    np.save("linear_rules", linear_train_obj.reduced_rules)
+    np.save("angular_rules", angular_train_obj.reduced_rules)
 
     linear_train_obj.plot_antecedents()
     linear_train_obj.plot_output_antecedents()
@@ -307,7 +325,7 @@ def test_model(linear_antecedents, angular_antecedents):
     plt.rcParams.update({'font.size': 15})
 
     plt.gca().yaxis.grid(True)
-    plt.plot(linear_outputs, label='MG')
+    plt.plot(test_matrix[:, 2], label='MG')
     plt.plot(linear_outputs, 'r-.', label='Pred')
     plt.title("Linear model\nMSE:"+str(round(linear_mse, 4)))
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
@@ -318,7 +336,7 @@ def test_model(linear_antecedents, angular_antecedents):
     plt.rcParams.update({'font.size': 15})
 
     plt.gca().yaxis.grid(True)
-    plt.plot(angular_outputs, label='MG')
+    plt.plot(test_matrix[:, 3], label='MG')
     plt.plot(angular_outputs, 'r-.', label='Pred')
     plt.title("Angular model\nMSE:"+str(round(angular_mse, 4)))
     plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
