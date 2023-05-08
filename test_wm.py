@@ -7,6 +7,7 @@ from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShou
 from time import time
 import multiprocessing as mp
 import copy as cp
+import pickle
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
@@ -185,7 +186,16 @@ def generate_rules(ant_numbers):
 
     del data_matrix
 
-    return (ant_numbers, linear_mse, angular_mse, linear_outputs, angular_outputs)
+    numbers_id = int("".join(map(str, ant_numbers)))
+
+    try:
+        results = np.load("results.npy", allow_pickle=True)
+        results = np.append(results, [(numbers_id, linear_mse, angular_mse)],
+                            axis=0)
+        np.save("results.npy", results, allow_pickle=True)
+    except IOError:
+        results = np.array([(numbers_id, linear_mse, angular_mse)])
+        np.save("results.npy", results, allow_pickle=True)
 
 
 def plot_data(data_matrix):
@@ -224,13 +234,16 @@ def plot_data(data_matrix):
 
 def main():
 
+    try:
+        results = np.load("results.npy", allow_pickle=True)
+    except IOError:
+        results = np.empty((0, 3))
+
     antecedents = [3, 5, 7, 9, 11, 13, 15, 17, 19]
     parents = 3
 
     antecedent_numbers = [
         (k, j, i) for i in antecedents for j in antecedents for k in antecedents]
-
-    start = time()
 
     active = np.empty(parents, dtype=object)
 
@@ -249,15 +262,21 @@ def main():
 
             if not process.is_alive():
                 if pos < len(antecedent_numbers):
+
+                    num_id = int("".join(map(str, antecedent_numbers[pos])))
+                    if num_id in results[:, 0]:
+                        pos += 1
+                        print("Skipping: ", antecedent_numbers[pos])
+                        continue
+
                     active[index] = mp.Process(
                         target=generate_rules, args=(antecedent_numbers[pos],))
                     active[index].daemon = False
                     active[index].start()
                     pos += 1
+                    print(f"{pos/len(antecedent_numbers)*100}% done")
                 else:
                     active[index] = None
-
-    print(time()-start)
 
 
 if __name__ == "__main__":
