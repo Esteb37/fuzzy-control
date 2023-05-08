@@ -6,6 +6,7 @@ from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
 import multiprocessing as mp
 import copy as cp
+from time import time
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
@@ -105,7 +106,7 @@ def apply_rules_to_inputs(params):
 
 
 def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
-    num_processes = 3
+    num_processes = 9
     # create a pool of worker processes
     pool = mp.Pool(num_processes)
     # calculate chunk size for each process
@@ -187,13 +188,13 @@ def generate_rules(ant_numbers):
     numbers_id = int("".join(map(str, ant_numbers)))
 
     try:
-        results = np.load("results.npy", allow_pickle=True)
+        results = np.load("results2.npy", allow_pickle=True)
         results = np.append(results, [(numbers_id, linear_mse, angular_mse)],
                             axis=0)
-        np.save("results.npy", results, allow_pickle=True)
+        np.save("results2.npy", results, allow_pickle=True)
     except IOError:
         results = np.array([(numbers_id, linear_mse, angular_mse)])
-        np.save("results.npy", results, allow_pickle=True)
+        np.save("results2.npy", results, allow_pickle=True)
 
 
 def plot_data(data_matrix):
@@ -232,49 +233,18 @@ def plot_data(data_matrix):
 
 def main():
 
-    try:
-        results = np.load("results.npy", allow_pickle=True)
-    except IOError:
-        results = np.empty((0, 3))
-
     antecedents = [3, 5, 7, 9, 11, 13, 15, 17, 19]
-    parents = 3
 
     antecedent_numbers = [
         (k, j, i) for i in antecedents for j in antecedents for k in antecedents]
 
-    active = np.empty(parents, dtype=object)
+    start = time()
 
-    for i in range(parents):
-        active[i] = mp.Process(target=generate_rules,
-                               args=(antecedent_numbers[i],))
-        active[i].daemon = False
-        active[i].start()
+    for i, num in enumerate(antecedent_numbers):
+        generate_rules(num)
+        print(f"{float((i+1)/len(antecedent_numbers)*100):.2}% done")
 
-    pos = parents
-
-    while active.any():
-        for index, process in enumerate(active):
-            if process is None:
-                continue
-
-            if not process.is_alive():
-                if pos < len(antecedent_numbers):
-
-                    num_id = int("".join(map(str, antecedent_numbers[pos])))
-                    if num_id in results[:, 0]:
-                        pos += 1
-                        print("Skipping: ", antecedent_numbers[pos])
-                        continue
-
-                    active[index] = mp.Process(
-                        target=generate_rules, args=(antecedent_numbers[pos],))
-                    active[index].daemon = False
-                    active[index].start()
-                    pos += 1
-                    print(f"{pos/len(antecedent_numbers)*100}% done")
-                else:
-                    active[index] = None
+    print("Time: ", time()-start)
 
 
 if __name__ == "__main__":
