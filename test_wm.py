@@ -4,10 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from T1_set import T1_LeftShoulder, T1_RightShoulder, T1_Triangular
 from T1_output import T1_Triangular_output, T1_RightShoulder_output, T1_LeftShoulder_output
-from time import time
 import multiprocessing as mp
 import copy as cp
-import pickle
 
 
 def generate_outputs_object(pairs_of_strength_antecedent, antecedents):
