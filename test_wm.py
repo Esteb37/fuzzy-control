@@ -129,6 +129,7 @@ def apply_rules_to_inputs_parallel(all_firing_strengths, train_obj, outputs):
     # close the pool of worker processes
     pool.close()
     pool.join()
+
     return (MSE, output_results)
 
 
@@ -167,6 +168,7 @@ def generate_test(train_obj, inputs, outputs):
 
 def generate_rules(ant_numbers):
 
+    print("Generating rules for antecedent numbers: ", ant_numbers)
     data_matrix = np.load("datos.npy")
 
     train_matrix = data_matrix[:2000]
@@ -223,30 +225,37 @@ def plot_data(data_matrix):
 def main():
 
     antecedents = [3, 5, 7, 9, 11, 13, 15, 17, 19]
-
     parents = 3
 
-    procs = np.empty(parents, dtype=object)
+    antecedent_numbers = [
+        (k, j, i) for i in antecedents for j in antecedents for k in antecedents]
 
-    pos = 0
     start = time()
 
-    for i in antecedents:
-        for j in antecedents:
-            for k in antecedents:
-                if pos < parents:
-                    antecedent_numbers = (k, j, i)
-                    process = mp.Process(target=generate_rules,
-                                         args=(antecedent_numbers, ))
-                    process.daemon = False
-                    procs[pos] = process
+    active = np.empty(parents, dtype=object)
+
+    for i in range(parents):
+        active[i] = mp.Process(target=generate_rules,
+                               args=(antecedent_numbers[i],))
+        active[i].daemon = False
+        active[i].start()
+
+    pos = parents
+
+    while active.any():
+        for index, process in enumerate(active):
+            if process is None:
+                continue
+
+            if not process.is_alive():
+                if pos < len(antecedent_numbers):
+                    active[index] = mp.Process(
+                        target=generate_rules, args=(antecedent_numbers[pos],))
+                    active[index].daemon = False
+                    active[index].start()
                     pos += 1
-
-    for p in procs:
-        p.start()
-
-    for p in procs:
-        p.join()
+                else:
+                    active[index] = None
 
     print(time()-start)
 
