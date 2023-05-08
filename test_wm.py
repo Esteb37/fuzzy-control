@@ -188,13 +188,13 @@ def generate_rules(ant_numbers):
     numbers_id = int("".join(map(str, ant_numbers)))
 
     try:
-        results = np.load("results2.npy", allow_pickle=True)
+        results = np.load("results.npy", allow_pickle=True)
         results = np.append(results, [(numbers_id, linear_mse, angular_mse)],
                             axis=0)
-        np.save("results2.npy", results, allow_pickle=True)
+        np.save("results.npy", results, allow_pickle=True)
     except IOError:
         results = np.array([(numbers_id, linear_mse, angular_mse)])
-        np.save("results2.npy", results, allow_pickle=True)
+        np.save("results.npy", results, allow_pickle=True)
 
 
 def plot_data(data_matrix):
@@ -231,7 +231,7 @@ def plot_data(data_matrix):
     plt.show()
 
 
-def main():
+def train_model():
 
     try:
         results = np.load("results.npy", allow_pickle=True)
@@ -254,6 +254,7 @@ def main():
 
     pos = parents
 
+    start_time = time()
     while active.any():
         for index, process in enumerate(active):
             if process is None:
@@ -272,11 +273,60 @@ def main():
                         target=generate_rules, args=(antecedent_numbers[pos],))
                     active[index].daemon = False
                     active[index].start()
+                    print(
+                        f"{pos/len(antecedent_numbers)*100}% done in {time()-start_time} seconds")
                     pos += 1
-                    print(f"{pos/len(antecedent_numbers)*100}% done")
                 else:
                     active[index] = None
 
 
+def test_model(linear_antecedents, angular_antecedents):
+
+    data_matrix = np.load("datos.npy")
+
+    train_matrix = data_matrix[:2000]
+    test_matrix = data_matrix[-3000:]
+
+    linear_train_obj = wang_mendel("linear", train_matrix, linear_antecedents)
+    angular_train_obj = wang_mendel(
+        "angular", train_matrix, angular_antecedents)
+
+    linear_train_obj.plot_antecedents()
+    linear_train_obj.plot_output_antecedents()
+
+    angular_train_obj.plot_antecedents()
+    angular_train_obj.plot_output_antecedents()
+
+    (linear_mse, linear_outputs) = generate_test(
+        linear_train_obj, test_matrix[:, 0:2], test_matrix[:, 2])
+
+    (angular_mse, angular_outputs) = generate_test(angular_train_obj,
+                                                   test_matrix[:, 0:2], test_matrix[:, 3])
+
+    plt.figure(figsize=(10, 5))
+    plt.rcParams.update({'font.size': 15})
+
+    plt.gca().yaxis.grid(True)
+    plt.plot(linear_outputs, label='MG')
+    plt.plot(linear_outputs, 'r-.', label='Pred')
+    plt.title("Linear model\nMSE:"+str(round(linear_mse, 4)))
+    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(10, 5))
+    plt.rcParams.update({'font.size': 15})
+
+    plt.gca().yaxis.grid(True)
+    plt.plot(angular_outputs, label='MG')
+    plt.plot(angular_outputs, 'r-.', label='Pred')
+    plt.title("Angular model\nMSE:"+str(round(angular_mse, 4)))
+    plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
-    main()
+    # train_model()
+
+    test_model([7, 5, 19], [3, 3, 7])
