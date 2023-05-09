@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 class wang_mendel(object):
 
-    def __init__(self, output_type, train_data_matrix, antecedent_numbers, distance_range, angle_range, max_output):
+    def __init__(self, output_type, train_data_matrix, antecedent_numbers, distance_range, angle_range, output_range):
 
         self.output_type = output_type
 
@@ -32,7 +32,7 @@ class wang_mendel(object):
             antecedent_numbers[1], angle_range)
 
         self.output_antecedents = self.generate_antecedents(
-            antecedent_numbers[2], (0, max_output))
+            antecedent_numbers[2], output_range)
 
         self.antecedent_numbers = antecedent_numbers
 

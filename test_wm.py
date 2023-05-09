@@ -166,7 +166,8 @@ def generate_test(train_obj, inputs, outputs):
     return results
 
 
-def generate_rules(ant_numbers):
+def generate_rules(ant_numbers, distance_range, angle_range,
+                   linear_speed_range, angular_speed_range):
 
     print("Generating rules for antecedent numbers: ", ant_numbers)
     data_matrix = np.load("datos.npy")
@@ -174,35 +175,25 @@ def generate_rules(ant_numbers):
     train_matrix = data_matrix[:2000]
     test_matrix = data_matrix[-3000:]
 
-    distance_range = (0, 4)
-    angle_range = (-np.pi, np.pi)
-
-    max_linear_speed = 0.75
-    max_angular_speed = 0.3
-
     linear_train_obj = wang_mendel(
-        "linear", train_matrix, ant_numbers, distance_range, angle_range, max_linear_speed)
+        "linear", train_matrix, ant_numbers, distance_range, angle_range, linear_speed_range)
     angular_train_obj = wang_mendel(
-        "angular", train_matrix, ant_numbers, distance_range, angle_range, max_angular_speed)
+        "angular", train_matrix, ant_numbers, distance_range, angle_range, angular_speed_range)
 
-    (linear_mse, linear_outputs) = generate_test(
+    (linear_mse, _) = generate_test(
         linear_train_obj, test_matrix[:, 0:2], test_matrix[:, 2])
 
-    (angular_mse, angular_outputs) = generate_test(angular_train_obj,
-                                                   test_matrix[:, 0:2], test_matrix[:, 3])
+    (angular_mse, _) = generate_test(angular_train_obj,
+                                     test_matrix[:, 0:2], test_matrix[:, 3])
 
     del data_matrix
 
     numbers_id = int("".join(map(str, ant_numbers)))
 
-    try:
-        results = np.load("results.npy", allow_pickle=True)
-        results = np.append(results, [(numbers_id, linear_mse, angular_mse)],
-                            axis=0)
-        np.save("results.npy", results, allow_pickle=True)
-    except IOError:
-        results = np.array([(numbers_id, linear_mse, angular_mse)])
-        np.save("results.npy", results, allow_pickle=True)
+    results = np.load("results.npy", allow_pickle=True)
+    results = np.append(results, [(numbers_id, linear_mse, angular_mse)],
+                        axis=0)
+    np.save("results.npy", results, allow_pickle=True)
 
 
 def plot_data(data_matrix):
@@ -239,7 +230,7 @@ def plot_data(data_matrix):
     plt.show()
 
 
-def train_model():
+def train_model(distance_range, angle_range, linear_speed_range, angular_speed_range):
 
     try:
         results = np.load("results.npy", allow_pickle=True)
@@ -256,7 +247,7 @@ def train_model():
 
     for i in range(parents):
         active[i] = mp.Process(target=generate_rules,
-                               args=(antecedent_numbers[i],))
+                               args=(antecedent_numbers[i], distance_range, angle_range, linear_speed_range, angular_speed_range))
         active[i].daemon = False
         active[i].start()
 
@@ -278,7 +269,7 @@ def train_model():
                         continue
 
                     active[index] = mp.Process(
-                        target=generate_rules, args=(antecedent_numbers[pos],))
+                        target=generate_rules, args=(antecedent_numbers[pos], distance_range, angle_range, linear_speed_range, angular_speed_range))
                     active[index].daemon = False
                     active[index].start()
                     print(
@@ -288,18 +279,13 @@ def train_model():
                     active[index] = None
 
 
-def test_model(linear_antecedents, angular_antecedents):
+def test_model(linear_antecedents, angular_antecedents, distance_range,
+               angle_range, max_linear_speed, max_angular_speed):
 
     data_matrix = np.load("datos.npy")
 
     train_matrix = data_matrix[:2000]
     test_matrix = data_matrix[-3000:]
-
-    distance_range = (0, 4)
-    angle_range = (-2.3, 3.7)
-
-    max_linear_speed = 0.75
-    max_angular_speed = 0.3
 
     linear_train_obj = wang_mendel(
         "linear", train_matrix, linear_antecedents, distance_range, angle_range, max_linear_speed)
@@ -345,6 +331,13 @@ def test_model(linear_antecedents, angular_antecedents):
 
 
 if __name__ == "__main__":
-    # train_model()
 
-    test_model([7, 5, 19], [3, 3, 7])
+    DISTANCE_RANGE = [0, 5]
+    ANGLE_RANGE = [-np.pi, np.pi]
+    LINEAR_SPEED_RANGE = (0, 0.75)
+    ANGULAR_SPEED_RANGE = (-1, 1)
+
+    # train_model(DISTANCE_RANGE, ANGLE_RANGE, LINEAR_SPEED_RANGE, ANGULAR_SPEED_RANGE)
+
+    test_model([9, 17, 15], [3, 13, 13], DISTANCE_RANGE,
+               ANGLE_RANGE, LINEAR_SPEED_RANGE, ANGULAR_SPEED_RANGE)

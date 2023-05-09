@@ -243,7 +243,8 @@ def plot_4D(data):
     # plot first three dimensions as a 3D scatter and the fourth as size
 
     # make the size difference more visible with an exponential function
-    values = np.exp(0.3/joint[:, 3])
+    values = np.exp(joint[:, 3])
+    values = np.exp((4*np.max(values))/values)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -254,7 +255,8 @@ def plot_4D(data):
     fig.suptitle("Linear MSE")
     plt.show()
 
-    values = np.exp(1.5/joint[:, 4])
+    values = np.exp(joint[:, 4])
+    values = np.exp((4*np.max(values))/values)
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
